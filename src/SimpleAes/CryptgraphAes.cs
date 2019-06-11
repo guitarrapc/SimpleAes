@@ -21,7 +21,7 @@ namespace SimpleAes
         protected CipherMode Mode = CipherMode.CBC;
         protected PaddingMode Padding = PaddingMode.PKCS7;
 
-        public async Task<string> EncryptStringAsync(string value, ICryptoTransform encryptor)
+        protected async Task<string> EncryptStringAsync(string value, ICryptoTransform encryptor)
         {
             using (var encrypted = new MemoryStream())
             using (var cs = new CryptoStream(encrypted, encryptor, CryptoStreamMode.Write))
@@ -34,7 +34,7 @@ namespace SimpleAes
             }
         }
 
-        public async Task<byte[]> EncryptBytesAsync(byte[] data, ICryptoTransform encryptor)
+        protected async Task<byte[]> EncryptBytesAsync(byte[] data, ICryptoTransform encryptor)
         {
             using (var encrypted = new MemoryStream())
             using (var cs = new CryptoStream(encrypted, encryptor, CryptoStreamMode.Write))
@@ -45,7 +45,7 @@ namespace SimpleAes
             }
         }
 
-        public async Task<string> DecryptStringAsync(string value, ICryptoTransform decryptor)
+        protected async Task<string> DecryptStringAsync(string value, ICryptoTransform decryptor)
         {
             using (var encrypted = new MemoryStream(value.FromBase64()))
             using (var cs = new CryptoStream(encrypted, decryptor, CryptoStreamMode.Read))
@@ -57,7 +57,7 @@ namespace SimpleAes
             }
         }
 
-        public async Task<byte[]> DecryptBytesAsync(byte[] data, ICryptoTransform decryptor)
+        protected async Task<byte[]> DecryptBytesAsync(byte[] data, ICryptoTransform decryptor)
         {
             using (var encrypted = new MemoryStream(data))
             using (var cs = new CryptoStream(encrypted, decryptor, CryptoStreamMode.Read))
