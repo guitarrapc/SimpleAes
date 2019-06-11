@@ -10,6 +10,8 @@ namespace SimpleAes
     {
         (string iv, string key) GenerateKey();
         (string iv, string key) GenerateKey(string ivPassword, string keyPassword);
+        string GenerateIv();
+        string GenerateIv(string ivPassword);
         Task<string> EncryptAsync(string value, string iv, string key);
         Task<byte[]> EncryptAsync(byte[] data, string iv, string key);
         Task<string> DecryptAsync(string value, string iv, string key);
@@ -116,6 +118,30 @@ namespace SimpleAes
                 return arr;
             }
             return (GenKey(ivPassword, blockSize).ToBase64(), GenKey(keyPassword, blockSize).ToBase64());
+        }
+
+        public string GenerateIv()
+        {
+            var csp = new AesCryptoServiceProvider()
+            {
+                BlockSize = this.blockSize,
+                KeySize = keySize,
+                Mode = this.Mode,
+                Padding = this.Padding,
+            };
+            csp.GenerateIV();
+            return csp.IV.ToBase64();
+        }
+
+        public string GenerateIv(string ivPassword)
+        {
+            byte[] GenKey(string password, int blockSize)
+            {
+                var rfc = new Rfc2898DeriveBytes(ivPassword, blockSize / 8);
+                var arr = rfc.GetBytes(blockSize / 8);
+                return arr;
+            }
+            return GenKey(ivPassword, blockSize).ToBase64();
         }
 
         public async Task<string> EncryptAsync(string value, string iv, string key)
