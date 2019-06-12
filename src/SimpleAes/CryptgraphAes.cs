@@ -8,22 +8,71 @@ namespace SimpleAes
 {
     public interface ICryptoGraph
     {
+        /// <summary>
+        /// Generate Key and IV
+        /// </summary>
+        /// <returns></returns>
         (string iv, string key) GenerateKey();
+        /// <summary>
+        /// Generate Key and IV
+        /// </summary>
+        /// <param name="ivPassword"></param>
+        /// <param name="keyPassword"></param>
+        /// <returns></returns>
         (string iv, string key) GenerateKey(string ivPassword, string keyPassword);
+        /// <summary>
+        /// Generate IV
+        /// </summary>
+        /// <returns></returns>
         string GenerateIv();
+        /// <summary>
+        /// Generate IV
+        /// </summary>
+        /// <param name="ivPassword"></param>
+        /// <returns></returns>
         string GenerateIv(string ivPassword);
+        /// <summary>
+        /// Encrypt with specific iv and key
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         Task<string> EncryptAsync(string value, string iv, string key);
+        /// <summary>
+        /// Encrypt with specific iv and key
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         Task<byte[]> EncryptAsync(byte[] data, string iv, string key);
+        /// <summary>
+        /// Decrypt with specific iv and key
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         Task<string> DecryptAsync(string value, string iv, string key);
+        /// <summary>
+        /// Decrypt with specific iv and key
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         Task<byte[]> DecryptAsync(byte[] data, string iv, string key);
     }
 
     public abstract class CryptographBase
     {
+        public bool UseBase64Url { get; set; } = false;
+
         protected CipherMode Mode = CipherMode.CBC;
         protected PaddingMode Padding = PaddingMode.PKCS7;
 
-        protected async Task<string> EncryptStringAsync(string value, ICryptoTransform encryptor)
+        public async Task<string> EncryptStringAsync(string value, ICryptoTransform encryptor)
         {
             using (var encrypted = new MemoryStream())
             using (var cs = new CryptoStream(encrypted, encryptor, CryptoStreamMode.Write))
@@ -32,11 +81,11 @@ namespace SimpleAes
                 var buffer = new UTF8Encoding(false).GetBytes(value);
                 await cs.WriteAsync(buffer, 0, buffer.Length);
                 cs.FlushFinalBlock();
-                return encrypted.ToArray().ToBase64();
+                return ToBase64(encrypted.ToArray());
             }
         }
 
-        protected async Task<byte[]> EncryptBytesAsync(byte[] data, ICryptoTransform encryptor)
+        public async Task<byte[]> EncryptBytesAsync(byte[] data, ICryptoTransform encryptor)
         {
             using (var encrypted = new MemoryStream())
             using (var cs = new CryptoStream(encrypted, encryptor, CryptoStreamMode.Write))
@@ -47,9 +96,9 @@ namespace SimpleAes
             }
         }
 
-        protected async Task<string> DecryptStringAsync(string value, ICryptoTransform decryptor)
+        public async Task<string> DecryptStringAsync(string value, ICryptoTransform decryptor)
         {
-            using (var encrypted = new MemoryStream(value.FromBase64()))
+            using (var encrypted = new MemoryStream(FromBase64(value)))
             using (var cs = new CryptoStream(encrypted, decryptor, CryptoStreamMode.Read))
             using (var mem = new MemoryStream())
             {
@@ -59,7 +108,7 @@ namespace SimpleAes
             }
         }
 
-        protected async Task<byte[]> DecryptBytesAsync(byte[] data, ICryptoTransform decryptor)
+        public async Task<byte[]> DecryptBytesAsync(byte[] data, ICryptoTransform decryptor)
         {
             using (var encrypted = new MemoryStream(data))
             using (var cs = new CryptoStream(encrypted, decryptor, CryptoStreamMode.Read))
@@ -69,6 +118,39 @@ namespace SimpleAes
                 return copy.ToArray();
             }
         }
+
+        // base64
+        protected string ToBase64(byte[] value) => UseBase64Url ? Base64.ToBase64Url(value) : Base64.ToBase64(value);
+        protected byte[] FromBase64(string value) => UseBase64Url ? Base64.FromBase64Url(value) : Base64.FromBase64(value);
+
+        internal static class Base64
+        {
+            public static string ToBase64(byte[] value) => Convert.ToBase64String(value);
+            public static byte[] FromBase64(string value) => Convert.FromBase64String(value);
+            public static string ToBase64Url(byte[] value) => RemovePadding(Convert.ToBase64String(value)).Replace("+", "-").Replace("/", "_");
+            public static byte[] FromBase64Url(string value) => Convert.FromBase64String(PadString(value).Replace("-", "+").Replace("_", "/"));
+
+            private static string RemovePadding(string text) => text.Replace("=", "");
+            private static string PadString(string text)
+            {
+                // shorthand way:
+                // base64String.PadRight(base64String.Length + (4 - base64String.Length % 4) % 4, '=');
+
+                var segment = 4;
+                var diff = text.Length % segment;
+
+                if (diff == 0) return text;
+
+                var padLength = segment - diff;
+                while (padLength-- != 0)
+                {
+                    text += "=";
+                }
+
+                return text;
+            }
+
+        }
     }
 
     public class CryptographAes : CryptographBase, ICryptoGraph
@@ -76,10 +158,8 @@ namespace SimpleAes
         private readonly int blockSize;
         private readonly int keySize;
 
-        public CryptographAes()
+        public CryptographAes() : this(128, 256)
         {
-            this.blockSize = 128;
-            this.keySize = 256;
         }
 
         public CryptographAes(int keySize)
@@ -106,7 +186,7 @@ namespace SimpleAes
             csp.GenerateIV();
             csp.GenerateKey();
 
-            return (csp.IV.ToBase64(), csp.Key.ToBase64());
+            return (ToBase64(csp.IV), ToBase64(csp.Key));
         }
 
         public (string iv, string key) GenerateKey(string ivPassword, string keyPassword)
@@ -117,7 +197,9 @@ namespace SimpleAes
                 var arr = rfc.GetBytes(blockSize / 8);
                 return arr;
             }
-            return (GenKey(ivPassword, blockSize).ToBase64(), GenKey(keyPassword, blockSize).ToBase64());
+            var iv = GenKey(ivPassword, blockSize);
+            var key = GenKey(keyPassword, blockSize);
+            return (ToBase64(iv), ToBase64(key));
         }
 
         public string GenerateIv()
@@ -130,7 +212,7 @@ namespace SimpleAes
                 Padding = this.Padding,
             };
             csp.GenerateIV();
-            return csp.IV.ToBase64();
+            return ToBase64(csp.IV);
         }
 
         public string GenerateIv(string ivPassword)
@@ -141,7 +223,8 @@ namespace SimpleAes
                 var arr = rfc.GetBytes(blockSize / 8);
                 return arr;
             }
-            return GenKey(ivPassword, blockSize).ToBase64();
+            var iv = GenKey(ivPassword, blockSize);
+            return ToBase64(iv);
         }
 
         public async Task<string> EncryptAsync(string value, string iv, string key)
@@ -152,8 +235,8 @@ namespace SimpleAes
                 KeySize = keySize,
                 Mode = this.Mode,
                 Padding = this.Padding,
-                IV = iv.FromBase64(), // must be after set Block size
-                Key = key.FromBase64(), // must be after set Key size
+                IV = FromBase64(iv), // must be after set Block size
+                Key = FromBase64(key), // must be after set Key size
             };
 
             using (var encrypted = new MemoryStream())
@@ -171,8 +254,8 @@ namespace SimpleAes
                 KeySize = keySize,
                 Mode = this.Mode,
                 Padding = this.Padding,
-                IV = iv.FromBase64(), // must be after set Block size
-                Key = key.FromBase64(), // must be after set Key size
+                IV = FromBase64(iv), // must be after set Block size
+                Key = FromBase64(key), // must be after set Key size
             };
 
             using (var encryptor = csp.CreateEncryptor())
@@ -190,8 +273,8 @@ namespace SimpleAes
                 KeySize = keySize,
                 Mode = this.Mode,
                 Padding = this.Padding,
-                IV = iv.FromBase64(), // must be after set Block size
-                Key = key.FromBase64(), // must be after set Key size
+                IV = FromBase64(iv), // must be after set Block size
+                Key = FromBase64(key), // must be after set Key size
             };
 
             using (var decryptor = csp.CreateDecryptor())
@@ -208,8 +291,8 @@ namespace SimpleAes
                 KeySize = keySize,
                 Mode = this.Mode,
                 Padding = this.Padding,
-                IV = iv.FromBase64(), // must be after set Block size
-                Key = key.FromBase64(), // must be after set Key size
+                IV = FromBase64(iv), // must be after set Block size
+                Key = FromBase64(key), // must be after set Key size
             };
 
             using (var decryptor = csp.CreateDecryptor())
