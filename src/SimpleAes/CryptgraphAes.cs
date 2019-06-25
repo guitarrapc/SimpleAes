@@ -358,8 +358,8 @@ namespace SimpleAes
                 using (var decryptor = aes.CreateDecryptor())
                 {
                     var data = FromBase64(value);
-                    var v = decryptor.TransformFinalBlock(data, 0, data.Length);
-                    return ToBase64(v);
+                    var decrypt = decryptor.TransformFinalBlock(data, 0, data.Length);
+                    return new UTF8Encoding(false).GetString(decrypt);
                 }
             }
         }
