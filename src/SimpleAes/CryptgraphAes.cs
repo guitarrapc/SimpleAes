@@ -136,19 +136,6 @@ namespace SimpleAes
         protected CipherMode Mode = CipherMode.CBC;
         protected PaddingMode Padding = PaddingMode.PKCS7;
 
-        public async Task<string> EncryptStringAsync(string value, ICryptoTransform encryptor)
-        {
-            using (var encrypted = new MemoryStream())
-            using (var cs = new CryptoStream(encrypted, encryptor, CryptoStreamMode.Write))
-            {
-                // no using (var writer = new StreamWriter(cs)), direct byte[]
-                var buffer = new UTF8Encoding(false).GetBytes(value);
-                await cs.WriteAsync(buffer, 0, buffer.Length);
-                cs.FlushFinalBlock();
-                return ToBase64(encrypted.ToArray());
-            }
-        }
-
         public async Task<byte[]> EncryptBytesAsync(byte[] data, ICryptoTransform encryptor)
         {
             using (var encrypted = new MemoryStream())
@@ -160,19 +147,7 @@ namespace SimpleAes
             }
         }
 
-        public async Task<string> DecryptStringAsync(string value, ICryptoTransform decryptor)
-        {
-            using (var encrypted = new MemoryStream(FromBase64(value)))
-            using (var cs = new CryptoStream(encrypted, decryptor, CryptoStreamMode.Read))
-            using (var mem = new MemoryStream())
-            {
-                // no using (var reader = new StreamReader(cs)), direct byte[]
-                await cs.CopyToAsync(mem);
-                return new UTF8Encoding(false).GetString(mem.ToArray());
-            }
-        }
-
-        public async Task<byte[]> DecryptBytesAsync(byte[] data, ICryptoTransform decryptor)
+        public async Task<byte[]> DecryptAsync(byte[] data, ICryptoTransform decryptor)
         {
             using (var encrypted = new MemoryStream(data))
             using (var cs = new CryptoStream(encrypted, decryptor, CryptoStreamMode.Read))
@@ -345,7 +320,9 @@ namespace SimpleAes
             using (var encrypted = new MemoryStream())
             using (var encryptor = csp.CreateEncryptor())
             {
-                return await EncryptStringAsync(value, encryptor);
+                var data = new UTF8Encoding(false).GetBytes(value);
+                var encrypt = await EncryptBytesAsync(data, encryptor);
+                return ToBase64(encrypt);
             }
         }
 
@@ -380,7 +357,7 @@ namespace SimpleAes
 
                 using (var decryptor = aes.CreateDecryptor())
                 {
-                    var data = new UTF8Encoding(false).GetBytes(value);
+                    var data = FromBase64(value);
                     var v = decryptor.TransformFinalBlock(data, 0, data.Length);
                     return ToBase64(v);
                 }
@@ -420,7 +397,8 @@ namespace SimpleAes
 
             using (var decryptor = csp.CreateDecryptor())
             {
-                return await DecryptStringAsync(value, decryptor);
+                var decrypt = await DecryptAsync(FromBase64(value), decryptor);
+                return new UTF8Encoding(false).GetString(decrypt);
             }
         }
 
@@ -438,7 +416,7 @@ namespace SimpleAes
 
             using (var decryptor = csp.CreateDecryptor())
             {
-                return await DecryptBytesAsync(data, decryptor);
+                return await DecryptAsync(data, decryptor);
             }
         }
 
