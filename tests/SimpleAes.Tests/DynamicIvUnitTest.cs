@@ -14,7 +14,7 @@ namespace SimpleAes.Tests
         public void CanGenerateKeyText()
         {
             ICryptoGraph crypto = new CryptographAes();
-            var (iv, key) = crypto.GenerateKey();
+            var (iv, _) = crypto.GenerateKey();
             key.Length.Should().Be(44);
             iv.Length.Should().Be(24);
         }
