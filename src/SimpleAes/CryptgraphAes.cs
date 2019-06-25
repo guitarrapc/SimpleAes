@@ -38,6 +38,22 @@ namespace SimpleAes
         /// <param name="iv"></param>
         /// <param name="key"></param>
         /// <returns></returns>
+        string Encrypt(string value, string iv, string key);
+        /// <summary>
+        /// Encrypt with specific iv and key
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        byte[] Encrypt(byte[] data, string iv, string key);
+        /// <summary>
+        /// Encrypt with specific iv and key
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         Task<string> EncryptAsync(string value, string iv, string key);
         /// <summary>
         /// Encrypt with specific iv and key
@@ -54,6 +70,22 @@ namespace SimpleAes
         /// <param name="iv"></param>
         /// <param name="key"></param>
         /// <returns></returns>
+        string Decrypt(string value, string iv, string key);
+        /// <summary>
+        /// Decrypt with specific iv and key
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        byte[] Decrypt(byte[] data, string iv, string key);
+        /// <summary>
+        /// Decrypt with specific iv and key
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
         Task<string> DecryptAsync(string value, string iv, string key);
         /// <summary>
         /// Decrypt with specific iv and key
@@ -63,6 +95,38 @@ namespace SimpleAes
         /// <param name="key"></param>
         /// <returns></returns>
         Task<byte[]> DecryptAsync(byte[] data, string iv, string key);
+        /// <summary>
+        /// validate encrypt can decrypt
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        bool ValidateEncrypt(string value, string iv, string key);
+        /// <summary>
+        /// Decrypt with specific iv and key
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        bool ValidateEncrypt(byte[] data, string iv, string key);
+        /// <summary>
+        /// validate encrypt can decrypt
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        Task<bool> ValidateEncryptAsync(string value, string iv, string key);
+        /// <summary>
+        /// Decrypt with specific iv and key
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="iv"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        Task<bool> ValidateEncryptAsync(byte[] data, string iv, string key);
     }
 
     public abstract class CryptographBase
@@ -193,7 +257,7 @@ namespace SimpleAes
         {
             byte[] GenKey(string password, int blockSize)
             {
-                var rfc = new Rfc2898DeriveBytes(ivPassword, blockSize / 8);
+                var rfc = new Rfc2898DeriveBytes(password, blockSize / 8);
                 var arr = rfc.GetBytes(blockSize / 8);
                 return arr;
             }
@@ -225,6 +289,45 @@ namespace SimpleAes
             }
             var iv = GenKey(ivPassword, blockSize);
             return ToBase64(iv);
+        }
+
+        public string Encrypt(string value, string iv, string key)
+        {
+            using (var aes = Aes.Create())
+            {
+                aes.BlockSize = blockSize;
+                aes.KeySize = keySize;
+                aes.Mode = this.Mode;
+                aes.Padding = this.Padding;
+                aes.IV = FromBase64(iv); // must be after set Block size
+                aes.Key = FromBase64(key); // must be after set Key size
+
+                using (var entryptor = aes.CreateEncryptor())
+                {
+                    var data = new UTF8Encoding(false).GetBytes(value);
+                    var v = entryptor.TransformFinalBlock(data, 0, data.Length);
+                    return ToBase64(v);
+                }
+            }
+        }
+
+        public byte[] Encrypt(byte[] data, string iv, string key)
+        {
+            using (var aes = Aes.Create())
+            {
+                aes.BlockSize = blockSize;
+                aes.KeySize = keySize;
+                aes.Mode = this.Mode;
+                aes.Padding = this.Padding;
+                aes.IV = FromBase64(iv); // must be after set Block size
+                aes.Key = FromBase64(key); // must be after set Key size
+
+                using (var entryptor = aes.CreateEncryptor())
+                {
+                    var v = entryptor.TransformFinalBlock(data, 0, data.Length);
+                    return v;
+                }
+            }
         }
 
         public async Task<string> EncryptAsync(string value, string iv, string key)
@@ -264,9 +367,47 @@ namespace SimpleAes
             }
         }
 
+        public string Decrypt(string value, string iv, string key)
+        {
+            using (var aes = Aes.Create())
+            {
+                aes.BlockSize = blockSize;
+                aes.KeySize = keySize;
+                aes.Mode = this.Mode;
+                aes.Padding = this.Padding;
+                aes.IV = FromBase64(iv); // must be after set Block size
+                aes.Key = FromBase64(key); // must be after set Key size
+
+                using (var decryptor = aes.CreateDecryptor())
+                {
+                    var data = new UTF8Encoding(false).GetBytes(value);
+                    var v = decryptor.TransformFinalBlock(data, 0, data.Length);
+                    return ToBase64(v);
+                }
+            }
+        }
+
+        public byte[] Decrypt(byte[] data, string iv, string key)
+        {
+            using (var aes = Aes.Create())
+            {
+                aes.BlockSize = blockSize;
+                aes.KeySize = keySize;
+                aes.Mode = this.Mode;
+                aes.Padding = this.Padding;
+                aes.IV = FromBase64(iv); // must be after set Block size
+                aes.Key = FromBase64(key); // must be after set Key size
+
+                using (var decryptor = aes.CreateDecryptor())
+                {
+                    var v = decryptor.TransformFinalBlock(data, 0, data.Length);
+                    return v;
+                }
+            }
+        }
+
         public async Task<string> DecryptAsync(string value, string iv, string key)
         {
-            var plain = string.Empty;
             var csp = new AesCryptoServiceProvider()
             {
                 BlockSize = blockSize,
@@ -298,6 +439,58 @@ namespace SimpleAes
             using (var decryptor = csp.CreateDecryptor())
             {
                 return await DecryptBytesAsync(data, decryptor);
+            }
+        }
+
+        public bool ValidateEncrypt(string value, string iv, string key)
+        {
+            try
+            {
+                var _ = Decrypt(value, iv, key);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public bool ValidateEncrypt(byte[] data, string iv, string key)
+        {
+            try
+            {
+                var _ = Decrypt(data, iv, key);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> ValidateEncryptAsync(string value, string iv, string key)
+        {
+            try
+            {
+                var _ = await DecryptAsync(value, iv, key);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> ValidateEncryptAsync(byte[] data, string iv, string key)
+        {
+            try
+            {
+                var _ = await DecryptAsync(data, iv, key);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
             }
         }
     }
